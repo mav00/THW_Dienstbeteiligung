@@ -1,6 +1,6 @@
 {
-    "name": "thw_urlaub",
-    "short_name": "thw_urlaub",
+    "name": "thw_dienstmanager",
+    "short_name": "thw_dienstmanager",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

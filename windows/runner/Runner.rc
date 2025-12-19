@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "com.example" "\0"
-            VALUE "FileDescription", "thw_urlaub" "\0"
+            VALUE "FileDescription", "thw_dienstmanager" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "thw_urlaub" "\0"
+            VALUE "InternalName", "thw_dienstmanager" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2025 com.example. All rights reserved." "\0"
-            VALUE "OriginalFilename", "thw_urlaub.exe" "\0"
-            VALUE "ProductName", "thw_urlaub" "\0"
+            VALUE "OriginalFilename", "thw_dienstmanager.exe" "\0"
+            VALUE "ProductName", "thw_dienstmanager" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

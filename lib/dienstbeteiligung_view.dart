@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:thw_urlaub/dienst.dart';
-import 'package:thw_urlaub/person.dart';
+import 'package:thw_dienstmanager/dienst.dart';
+import 'package:thw_dienstmanager/person.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:yaml/yaml.dart';
 import 'package:yaml_writer/yaml_writer.dart';
-import 'package:thw_urlaub/dienst_status.dart';
-import 'package:thw_urlaub/pdf_export_service.dart';
+import 'package:thw_dienstmanager/dienst_status.dart';
+import 'package:thw_dienstmanager/pdf_export_service.dart';
+import 'package:open_filex/open_filex.dart';
 
 class DienstbeteiligungView extends StatefulWidget {
   final List<Dienst> dienste;
@@ -153,6 +154,7 @@ class _DienstbeteiligungViewState extends State<DienstbeteiligungView> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('PDF gespeichert unter: ${file.path}')),
       );
+      await OpenFilex.open(file.path);
     }
   }
 
@@ -168,6 +170,7 @@ class _DienstbeteiligungViewState extends State<DienstbeteiligungView> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Jahresübersicht gespeichert: ${file.path}')),
         );
+        await OpenFilex.open(file.path);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Keine Dienste im aktuellen Jahr gefunden.')),
@@ -274,6 +277,7 @@ class _DienstbeteiligungViewState extends State<DienstbeteiligungView> {
             children: [
               DropdownButtonFormField<Dienst>(
                 value: _ausgewaehlterDienst,
+                dropdownColor: Colors.white,
                 decoration: InputDecoration(labelText: "Dienst auswählen"),
                 isExpanded: true,
                 items: widget.dienste.map((dienst) {

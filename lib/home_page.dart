@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/services.dart' show rootBundle;
-import 'package:thw_urlaub/person.dart';
+import 'package:thw_dienstmanager/person.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:yaml/yaml.dart';
 import 'package:yaml_writer/yaml_writer.dart';
-import 'package:thw_urlaub/eintrag_abwesenheit.dart';
-import 'package:thw_urlaub/helferdaten_page.dart';
-import 'package:thw_urlaub/abwesenheiten_ansehen_view.dart';
-import 'package:thw_urlaub/dienste_page.dart';
-import 'package:thw_urlaub/dienst.dart';
-import 'package:thw_urlaub/dienstbeteiligung_view.dart';
+import 'package:thw_dienstmanager/eintrag_abwesenheit.dart';
+import 'package:thw_dienstmanager/helferdaten_page.dart';
+import 'package:thw_dienstmanager/abwesenheiten_ansehen_view.dart';
+import 'package:thw_dienstmanager/dienste_page.dart';
+import 'package:thw_dienstmanager/dienst.dart';
+import 'package:thw_dienstmanager/dienstbeteiligung_view.dart';
 
 enum Ansicht { eintraegeAnsehen, neuerEintrag, dienstbeteiligung, diensteVerwalten, helferDaten }
 
@@ -204,6 +204,7 @@ class _HomePageState extends State<HomePage> {
               children: [
                 DropdownButtonFormField<Person>(
                   value: _ausgewaehltePerson,
+                  dropdownColor: Colors.white,
                   decoration: InputDecoration(labelText: "Person auswählen"),
                   items: personen.map((person) {
                     return DropdownMenuItem<Person>(

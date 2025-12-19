@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:yaml/yaml.dart';
-import 'package:thw_urlaub/person.dart';
+import 'package:thw_dienstmanager/person.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:yaml_writer/yaml_writer.dart';
@@ -74,6 +74,7 @@ class _HelferdatenPageState extends State<HelferdatenPage> {
                     ),
                     DropdownButtonFormField<Einheit>(
                       value: ausgewaehlteEinheit,
+                      dropdownColor: Colors.white,
                       decoration: InputDecoration(labelText: 'Einheit'),
                       items: Einheit.values.map((e) {
                         return DropdownMenuItem(

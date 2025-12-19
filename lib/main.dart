@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:thw_urlaub/home_page.dart';
+import 'package:thw_dienstmanager/home_page.dart';
 
 void main() => runApp(MyApp());
 

@@ -1,4 +1,4 @@
-package com.example.thw_urlaub
+package com.example.thw_dienstmanager
 
 import io.flutter.embedding.android.FlutterActivity
 

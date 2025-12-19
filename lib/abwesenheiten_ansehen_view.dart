@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:thw_urlaub/eintrag_abwesenheit.dart';
+import 'package:thw_dienstmanager/eintrag_abwesenheit.dart';
 
 class AbwesenheitenAnsehenView extends StatelessWidget {
   final List<EintragAbwesenheit> eintraege;

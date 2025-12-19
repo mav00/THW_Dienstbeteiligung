@@ -4,8 +4,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:yaml/yaml.dart';
 import 'package:yaml_writer/yaml_writer.dart';
 import 'package:intl/intl.dart';
-import 'package:thw_urlaub/dienst.dart';
-import 'package:thw_urlaub/person.dart';
+import 'package:thw_dienstmanager/dienst.dart';
+import 'package:thw_dienstmanager/person.dart';
 
 class DienstePage extends StatefulWidget {
   @override

@@ -3,9 +3,9 @@ import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:thw_urlaub/dienst.dart';
-import 'package:thw_urlaub/person.dart';
-import 'package:thw_urlaub/dienst_status.dart';
+import 'package:thw_dienstmanager/dienst.dart';
+import 'package:thw_dienstmanager/person.dart';
+import 'package:thw_dienstmanager/dienst_status.dart';
 
 class PdfExportService {
   final DateFormat _dateFormat = DateFormat('dd.MM.yyyy');
@@ -42,19 +42,46 @@ class PdfExportService {
               ),
               pw.Text('Einheiten: $unitsStr'),
               pw.SizedBox(height: 20),
-              pw.Table.fromTextArray(
-                context: context,
-                headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-                headers: ['Nachname', 'Vorname', 'Funktion', 'Status'],
-                data: teilnehmende.map((p) {
-                  final status = statusMap[p];
-                  return [
-                    p.name,
-                    p.vorname,
-                    p.funktionen.map((f) => f.toString().split('.').last).join(', '),
-                    status?.name.toUpperCase() ?? '-',
-                  ];
-                }).toList(),
+              pw.Table(
+                border: pw.TableBorder.all(width: 0.5),
+                children: [
+                  pw.TableRow(
+                    decoration: const pw.BoxDecoration(color: PdfColors.grey200),
+                    children: [
+                      'Nachname', 'Vorname', 'Funktion', 'Status'
+                    ].map((t) => pw.Padding(padding: const pw.EdgeInsets.all(5), child: pw.Text(t, style: pw.TextStyle(fontWeight: pw.FontWeight.bold)))).toList(),
+                  ),
+                  ...teilnehmende.map((p) {
+                    final status = statusMap[p];
+                    PdfColor? cellColor;
+                    if (status != null) {
+                      switch (status) {
+                        case DienstStatus.x:
+                          cellColor = PdfColors.green200;
+                          break;
+                        case DienstStatus.b:
+                        case DienstStatus.k:
+                          cellColor = PdfColors.yellow200;
+                          break;
+                        case DienstStatus.u:
+                          cellColor = PdfColors.red200;
+                          break;
+                      }
+                    }
+                    return pw.TableRow(
+                      children: [
+                        pw.Padding(padding: const pw.EdgeInsets.all(5), child: pw.Text(p.name)),
+                        pw.Padding(padding: const pw.EdgeInsets.all(5), child: pw.Text(p.vorname)),
+                        pw.Padding(padding: const pw.EdgeInsets.all(5), child: pw.Text(p.funktionen.map((f) => f.toString().split('.').last).join(', '))),
+                        pw.Container(
+                          padding: const pw.EdgeInsets.all(5),
+                          color: cellColor,
+                          child: pw.Text(status?.name.toUpperCase() ?? ''),
+                        ),
+                      ],
+                    );
+                  }).toList(),
+                ],
               ),
               pw.SizedBox(height: 20),
               pw.Text('Zusammenfassung:', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
@@ -128,7 +155,7 @@ class PdfExportService {
                         child: pw.Text('${p.name}, ${p.vorname}', style: const pw.TextStyle(fontSize: 8)),
                       ),
                       ...servicesOfYear.map((d) {
-                        String cellText = '-';
+                        String cellText = '';
                         PdfColor? cellColor;
                         
                         if (!d.einheiten.contains(p.einheit)) {
@@ -138,6 +165,18 @@ class PdfExportService {
                           final status = anwesenheitsListe[d]?[p];
                           if (status != null) {
                             cellText = status.name.toUpperCase();
+                            switch (status) {
+                              case DienstStatus.x:
+                                cellColor = PdfColors.green200;
+                                break;
+                              case DienstStatus.b:
+                              case DienstStatus.k:
+                                cellColor = PdfColors.yellow200;
+                                break;
+                              case DienstStatus.u:
+                                cellColor = PdfColors.red200;
+                                break;
+                            }
                           }
                         }
                         

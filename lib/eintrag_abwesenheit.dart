@@ -1,4 +1,4 @@
-import 'package:thw_urlaub/person.dart';
+import 'package:thw_dienstmanager/person.dart';
 
 class EintragAbwesenheit {
   Person person;
