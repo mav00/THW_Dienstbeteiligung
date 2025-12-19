@@ -176,14 +176,7 @@ class _DienstePageState extends State<DienstePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: Text('Dienste verwalten'),
-        backgroundColor: Color(0xFF003399),
-        foregroundColor: Colors.white,
-      ),
-      body: Column(
+    return Column(
         children: [
           Padding(
             padding: const EdgeInsets.all(8.0),
@@ -246,7 +239,6 @@ class _DienstePageState extends State<DienstePage> {
                       ),
           ),
         ],
-      ),
     );
   }
 }

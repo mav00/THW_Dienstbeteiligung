@@ -13,7 +13,7 @@ import 'package:thw_urlaub/dienste_page.dart';
 import 'package:thw_urlaub/dienst.dart';
 import 'package:thw_urlaub/dienstbeteiligung_view.dart';
 
-enum Ansicht { eintraegeAnsehen, neuerEintrag, dienstbeteiligung }
+enum Ansicht { eintraegeAnsehen, neuerEintrag, dienstbeteiligung, diensteVerwalten, helferDaten }
 
 Future<String> get _localPath async {
   final directory = await getApplicationDocumentsDirectory();
@@ -319,41 +319,123 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  Widget _buildDrawer() {
+    return Drawer(
+      child: ListView(
+        padding: EdgeInsets.zero,
+        children: [
+          DrawerHeader(
+            decoration: const BoxDecoration(
+              color: Color(0xFF003399),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Container(
+                    alignment: Alignment.centerLeft,
+                    child: Image.asset(
+                      'assets/logo.jpg',
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'THW Dienstmanager',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.add_circle_outline),
+            title: const Text('Neue Abwesenheit'),
+            selected: _auswahl == Ansicht.neuerEintrag,
+            onTap: () {
+              setState(() {
+                _auswahl = Ansicht.neuerEintrag;
+              });
+              Navigator.pop(context);
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.list),
+            title: const Text('Abwesenheiten ansehen'),
+            selected: _auswahl == Ansicht.eintraegeAnsehen,
+            onTap: () {
+              setState(() {
+                _auswahl = Ansicht.eintraegeAnsehen;
+              });
+              Navigator.pop(context);
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.assignment_ind),
+            title: const Text('Dienstbeteiligung'),
+            selected: _auswahl == Ansicht.dienstbeteiligung,
+            onTap: () {
+              setState(() {
+                _auswahl = Ansicht.dienstbeteiligung;
+              });
+              Navigator.pop(context);
+            },
+          ),
+          const Divider(),
+          ListTile(
+            leading: const Icon(Icons.calendar_month),
+            title: const Text('Dienste verwalten'),
+            selected: _auswahl == Ansicht.diensteVerwalten,
+            onTap: () {
+              setState(() {
+                _auswahl = Ansicht.diensteVerwalten;
+              });
+              Navigator.pop(context);
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.person),
+            title: const Text('Helferdaten'),
+            selected: _auswahl == Ansicht.helferDaten,
+            onTap: () {
+              setState(() {
+                _auswahl = Ansicht.helferDaten;
+              });
+              Navigator.pop(context);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
   AppBar getAppBar() {
+    String title = 'Abwesenheiten 1.TZ';
+    switch (_auswahl) {
+      case Ansicht.neuerEintrag:
+        title = 'Neue Abwesenheit';
+        break;
+      case Ansicht.eintraegeAnsehen:
+        title = 'Abwesenheiten ansehen';
+        break;
+      case Ansicht.dienstbeteiligung:
+        title = 'Dienstbeteiligung';
+        break;
+      case Ansicht.diensteVerwalten:
+        title = 'Dienste verwalten';
+        break;
+      case Ansicht.helferDaten:
+        title = 'Helferdaten';
+        break;
+    }
     return AppBar(
       backgroundColor: Color(0xFF003399),
       foregroundColor: Colors.white,
       centerTitle: true,
-      leading: Image.asset(
-        'assets/logo.jpg',
-        fit: BoxFit.contain,
-      ),
-      leadingWidth: 160,
-      title: Text('Abwesenheiten 1.TZ'),
-      actions: [
-        IconButton(
-          icon: Icon(Icons.calendar_month),
-          onPressed: () async {
-            await Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => DienstePage()),
-            );
-            ladeDiensteAusYaml(); // Dienste neu laden, falls welche hinzugefügt/gelöscht wurden
-          },
-        ),
-        IconButton(
-          icon: Icon(Icons.person),
-          onPressed: () async {
-            await Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => HelferdatenPage()),
-            );
-            setState(() {
-              _personenFuture = ladePersonenAusYaml();
-            });
-          },
-        ),
-      ],
+      title: Text(title),
     );
   }
 
@@ -363,67 +445,52 @@ class _HomePageState extends State<HomePage> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: getAppBar(),
+      drawer: _buildDrawer(),
       body: Padding(
         padding: EdgeInsets.all(16),
         child: Column(
           children: [
-            ToggleButtons(
-              isSelected: [
-                _auswahl == Ansicht.neuerEintrag,
-                _auswahl == Ansicht.eintraegeAnsehen,
-                _auswahl == Ansicht.dienstbeteiligung,
-              ],
-              onPressed: (int index) {
-                setState(() {
-                  _auswahl = (index == 0)
-                      ? Ansicht.neuerEintrag
-                      : (index == 1)
-                          ? Ansicht.eintraegeAnsehen
-                          : Ansicht.dienstbeteiligung;
-                });
-              },
-              borderRadius: BorderRadius.circular(4),
-              hoverColor: Colors.blueGrey,
-              selectedBorderColor: Color(0xff000000),
-              selectedColor: Colors.white,
-              fillColor: Color(0xFF003399),
-              color: const Color.fromARGB(255, 0, 0, 0),
-              constraints: BoxConstraints(minHeight: 40, minWidth: 150),
-              children: [
-                Text(' Neue Abwesenheit eintragen '),
-                Text(' Abwesenheiten einsehen '),
-                Text(' Dienstbeteiligung '),
-              ],
-            ),
-            Divider(),
-            Expanded(
-              child: _auswahl == Ansicht.neuerEintrag
-                  ? buildNeuerEintragView()
-                  : _auswahl == Ansicht.eintraegeAnsehen
-                      ? AbwesenheitenAnsehenView(
-                          eintraege: _eintraege,
-                          filterDatum: _filterDatum,
-                          onFilterDatumChanged: (datum) {
-                            setState(() => _filterDatum = datum);
-                          },
-                          onEintragRemoved: (eintrag) async {
-                            setState(() {
-                              _eintraege.remove(eintrag);
-                            });
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('Eintrag gelöscht')),
-                            );
-                            await speichereEintraegeInYaml();
-                          },
-                        )
-                      : DienstbeteiligungView(
-                          dienste: _dienste,
-                          personenFuture: _personenFuture,
-                        ),
-            ),
+            Expanded(child: _buildContent()),
           ],
         ),
       ),
     );
+  }
+
+  Widget _buildContent() {
+    switch (_auswahl) {
+      case Ansicht.neuerEintrag:
+        return buildNeuerEintragView();
+      case Ansicht.eintraegeAnsehen:
+        return AbwesenheitenAnsehenView(
+          eintraege: _eintraege,
+          filterDatum: _filterDatum,
+          onFilterDatumChanged: (datum) {
+            setState(() => _filterDatum = datum);
+          },
+          onEintragRemoved: (eintrag) async {
+            setState(() {
+              _eintraege.remove(eintrag);
+            });
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Eintrag gelöscht')),
+            );
+            await speichereEintraegeInYaml();
+          },
+        );
+      case Ansicht.dienstbeteiligung:
+        // Daten neu laden, falls sie in der Verwaltung geändert wurden
+        ladeDiensteAusYaml();
+        return DienstbeteiligungView(
+          dienste: _dienste,
+          personenFuture: _personenFuture,
+        );
+      case Ansicht.diensteVerwalten:
+        return DienstePage();
+      case Ansicht.helferDaten:
+        // Personen neu laden, falls sie geändert wurden
+        _personenFuture = ladePersonenAusYaml();
+        return HelferdatenPage();
+    }
   }
 }

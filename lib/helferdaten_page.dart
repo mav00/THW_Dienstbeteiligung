@@ -175,11 +175,7 @@ class _HelferdatenPageState extends State<HelferdatenPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: Text('Helferdaten'),
-        backgroundColor: Color(0xFF003399),
-        foregroundColor: Colors.white,
-      ),
+      
       body: Column(
         children: [
           Padding(

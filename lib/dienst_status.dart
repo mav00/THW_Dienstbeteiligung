@@ -1,0 +1,1 @@
+enum DienstStatus { x, b, k, u }

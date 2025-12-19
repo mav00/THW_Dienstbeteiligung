@@ -2,8 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:thw_urlaub/dienst.dart';
 import 'package:thw_urlaub/person.dart';
-
-enum DienstStatus { x, b, k, u }
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
+import 'package:yaml/yaml.dart';
+import 'package:yaml_writer/yaml_writer.dart';
+import 'package:thw_urlaub/dienst_status.dart';
+import 'package:thw_urlaub/pdf_export_service.dart';
 
 class DienstbeteiligungView extends StatefulWidget {
   final List<Dienst> dienste;
@@ -28,6 +32,7 @@ class _DienstbeteiligungViewState extends State<DienstbeteiligungView> {
   void initState() {
     super.initState();
     _updateSelection();
+    _loadAttendance();
   }
 
   @override
@@ -35,6 +40,139 @@ class _DienstbeteiligungViewState extends State<DienstbeteiligungView> {
     super.didUpdateWidget(oldWidget);
     if (widget.dienste != oldWidget.dienste) {
       _updateSelection();
+    }
+  }
+
+  Future<void> _loadAttendance() async {
+    try {
+      final directory = await getApplicationDocumentsDirectory();
+      final file = File('${directory.path}/anwesenheit.yaml');
+      if (!await file.exists()) return;
+
+      final content = await file.readAsString();
+      if (content.isEmpty) return;
+      
+      final yamlList = loadYaml(content);
+      if (yamlList == null) return;
+
+      final personen = await widget.personenFuture;
+      final Map<Dienst, Map<Person, DienstStatus>> loadedData = {};
+
+      for (var entry in yamlList) {
+        final dateStr = entry['date'];
+        // Dienst anhand des Datums finden
+        Dienst? dienst;
+        try {
+          dienst = widget.dienste.firstWhere(
+            (d) => _dateFormat.format(d.datum) == dateStr
+          );
+        } catch (e) {
+          continue; // Dienst existiert nicht mehr
+        }
+
+        final attendanceList = entry['attendance'] as List;
+        final Map<Person, DienstStatus> statusMap = {};
+
+        for (var att in attendanceList) {
+          final personMap = Map<String, dynamic>.from(att['person']);
+          final statusStr = att['status'];
+          
+          // Person finden (Vergleich über Map-Daten, um Objekt-Identität zu wahren)
+          Person person;
+          try {
+            person = personen.firstWhere((p) {
+              final pMap = p.toMap();
+              if (pMap.length != personMap.length) return false;
+              for (var key in pMap.keys) {
+                if (pMap[key].toString() != personMap[key].toString()) return false;
+              }
+              return true;
+            });
+          } catch (e) {
+            // Person nicht gefunden (evtl. gelöscht), aus gespeicherten Daten wiederherstellen
+            person = Person.fromMap(personMap);
+          }
+          statusMap[person] = DienstStatus.values.firstWhere((e) => e.name == statusStr);
+        }
+        
+        if (statusMap.isNotEmpty) {
+          loadedData[dienst] = statusMap;
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _anwesenheitsListe.addAll(loadedData);
+        });
+      }
+    } catch (e) {
+      print('Fehler beim Laden der Anwesenheit: $e');
+    }
+  }
+
+  Future<void> _saveAttendance() async {
+    final directory = await getApplicationDocumentsDirectory();
+    final file = File('${directory.path}/anwesenheit.yaml');
+    
+    final List<Map<String, dynamic>> exportList = [];
+    
+    _anwesenheitsListe.forEach((dienst, personStatusMap) {
+      if (personStatusMap.isEmpty) return;
+      
+      final String dateStr = _dateFormat.format(dienst.datum);
+      final List<Map<String, dynamic>> attendanceList = [];
+      
+      personStatusMap.forEach((person, status) {
+        attendanceList.add({
+          'person': person.toMap(),
+          'status': status.name,
+        });
+      });
+      
+      exportList.add({
+        'date': dateStr,
+        'attendance': attendanceList,
+      });
+    });
+
+    final yamlWriter = YamlWriter();
+    final yamlString = yamlWriter.write(exportList);
+    await file.writeAsString(yamlString);
+  }
+
+  Future<void> _exportPdf() async {
+    if (_ausgewaehlterDienst == null) return;
+
+    final service = PdfExportService();
+    final personen = await widget.personenFuture;
+    final statusMap = _anwesenheitsListe[_ausgewaehlterDienst] ?? {};
+
+    final file = await service.exportSingleServicePdf(_ausgewaehlterDienst!, personen, statusMap);
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('PDF gespeichert unter: ${file.path}')),
+      );
+    }
+  }
+
+  Future<void> _exportYearlyPdf() async {
+    final service = PdfExportService();
+    final personen = await widget.personenFuture;
+    final currentYear = DateTime.now().year;
+
+    final file = await service.exportYearlyPdf(currentYear, widget.dienste, personen, _anwesenheitsListe);
+
+    if (mounted) {
+      if (file != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Jahresübersicht gespeichert: ${file.path}')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Keine Dienste im aktuellen Jahr gefunden.')),
+        );
+      }
     }
   }
 
@@ -75,7 +213,12 @@ class _DienstbeteiligungViewState extends State<DienstbeteiligungView> {
             if (!_anwesenheitsListe.containsKey(_ausgewaehlterDienst!)) {
               _anwesenheitsListe[_ausgewaehlterDienst!] = {};
             }
-            _anwesenheitsListe[_ausgewaehlterDienst!]![person] = status;
+            if (_anwesenheitsListe[_ausgewaehlterDienst!]![person] == status) {
+              _anwesenheitsListe[_ausgewaehlterDienst!]!.remove(person);
+            } else {
+              _anwesenheitsListe[_ausgewaehlterDienst!]![person] = status;
+            }
+            _saveAttendance();
           }
         });
       },
@@ -107,9 +250,25 @@ class _DienstbeteiligungViewState extends State<DienstbeteiligungView> {
           return Center(child: Text('Keine Personen gefunden'));
         } else {
           final allePersonen = snapshot.data!;
-          final teilnehmendePersonen = _ausgewaehlterDienst == null
-              ? <Person>[]
-              : allePersonen.where((p) => _ausgewaehlterDienst!.einheiten.contains(p.einheit)).toList();
+          List<Person> teilnehmendePersonen = [];
+
+          if (_ausgewaehlterDienst != null) {
+            final Set<Person> uniquePersons = {};
+            // 1. Aktive Personen der Einheit hinzufügen
+            uniquePersons.addAll(allePersonen.where((p) => _ausgewaehlterDienst!.einheiten.contains(p.einheit)));
+            
+            // 2. Personen aus der Anwesenheitsliste hinzufügen (inkl. gelöschter)
+            if (_anwesenheitsListe.containsKey(_ausgewaehlterDienst)) {
+              uniquePersons.addAll(_anwesenheitsListe[_ausgewaehlterDienst]!.keys);
+            }
+            
+            teilnehmendePersonen = uniquePersons.toList();
+            // Sortieren nach Name, Vorname
+            teilnehmendePersonen.sort((a, b) {
+              int cmp = a.name.compareTo(b.name);
+              return cmp != 0 ? cmp : a.vorname.compareTo(b.vorname);
+            });
+          }
 
           return Column(
             children: [
@@ -203,6 +362,32 @@ class _DienstbeteiligungViewState extends State<DienstbeteiligungView> {
                         const Text('Anwesende Kraftfahrer (KF):', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                         Text('${_getAnwesendeKFCount()}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                       ],
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        icon: const Icon(Icons.picture_as_pdf),
+                        label: const Text('Als PDF exportieren'),
+                        onPressed: _exportPdf,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF003399),
+                          foregroundColor: Colors.white,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        icon: const Icon(Icons.table_chart),
+                        label: const Text('Jahresübersicht (PDF)'),
+                        onPressed: _exportYearlyPdf,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF003399),
+                          foregroundColor: Colors.white,
+                        ),
+                      ),
                     ),
                   ],
                 ),
