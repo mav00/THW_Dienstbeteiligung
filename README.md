@@ -16,6 +16,7 @@ Diese Flutter-Anwendung dient der Verwaltung von Dienstbeteiligungen und Abwesen
         *   **k**: Krank (Gelb)
         *   **u**: Unentschuldigt (Rot)
     *   Automatische Zählung der anwesenden Gesamtstärke und Kraftfahrer (KF).
+    *   **PDF-Export**: Erstellung von Dienstauswertungen und Jahresübersichten als PDF.
 *   **Stammdatenverwaltung**:
     *   Verwaltung von Helferdaten (Personen, Einheiten, Funktionen).
     *   Verwaltung von Dienstterminen.
@@ -45,3 +46,4 @@ Die Anwendung speichert Daten im lokalen Dokumentenverzeichnis der Anwendung in 
 *   `persons.yaml`: Enthält die Liste der Helfer inkl. Funktionen (z.B. KF) und Einheit.
 *   `dienste.yaml`: Liste der angelegten Dienste.
 *   `abwesenheiten.yaml`: Gespeicherte Abwesenheitseinträge (Von-Bis Datum).
+*   `anwesenheit.yaml`: Speichert die erfasste Dienstbeteiligung pro Dienst und Helfer.
