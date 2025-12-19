@@ -24,12 +24,6 @@ class _HelferdatenPageState extends State<HelferdatenPage> {
         final yamlString = await file.readAsString();
         final yamlList = loadYaml(yamlString) as YamlList;
         geladenePersonen = yamlList.map((e) => Person.fromMap(Map<String, dynamic>.from(e))).toList();
-      } else {
-        final yamlString = await rootBundle.loadString('assets/persons.yaml');
-        final yamlList = loadYaml(yamlString) as YamlList;
-        geladenePersonen = yamlList
-            .map((e) => Person.fromMap(Map<String, dynamic>.from(e)))
-            .toList();
       }
     } catch (e) {
       print('Fehler beim Laden der lokalen Personen: $e');

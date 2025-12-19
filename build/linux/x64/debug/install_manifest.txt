@@ -1,8 +1,8 @@
 /home/mav/source/THW_Dienstbeteiligung/build/linux/x64/debug/bundle/thw_urlaub
 /home/mav/source/THW_Dienstbeteiligung/build/linux/x64/debug/bundle/data/icudtl.dat
 /home/mav/source/THW_Dienstbeteiligung/build/linux/x64/debug/bundle/lib/libflutter_linux_gtk.so
+/home/mav/source/THW_Dienstbeteiligung/build/linux/x64/debug/bundle/data/flutter_assets/assets/thw.png
 /home/mav/source/THW_Dienstbeteiligung/build/linux/x64/debug/bundle/data/flutter_assets/assets/logo.jpg
-/home/mav/source/THW_Dienstbeteiligung/build/linux/x64/debug/bundle/data/flutter_assets/assets/persons.yaml
 /home/mav/source/THW_Dienstbeteiligung/build/linux/x64/debug/bundle/data/flutter_assets/AssetManifest.bin
 /home/mav/source/THW_Dienstbeteiligung/build/linux/x64/debug/bundle/data/flutter_assets/FontManifest.json
 /home/mav/source/THW_Dienstbeteiligung/build/linux/x64/debug/bundle/data/flutter_assets/fonts/MaterialIcons-Regular.otf

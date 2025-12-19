@@ -64,14 +64,7 @@ class _HomePageState extends State<HomePage> {
       print('Fehler beim Laden der lokalen Personen: $e');
     }
 
-    final yamlString = await rootBundle.loadString('assets/persons.yaml');
-    final yamlList = loadYaml(yamlString) as YamlList;
-
-    List<Person> personen = yamlList
-        .map((e) => Person.fromMap(Map<String, dynamic>.from(e)))
-        .toList();
-
-    return personen;
+    return [];
   }
 
   Future<void> speichereEintraegeInYaml() async {
@@ -436,6 +429,12 @@ class _HomePageState extends State<HomePage> {
       foregroundColor: Colors.white,
       centerTitle: true,
       title: Text(title),
+      actions: [
+        Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Image.asset('assets/thw.png'),
+        ),
+      ],
     );
   }
 
