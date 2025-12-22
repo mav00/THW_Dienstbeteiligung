@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:thw_dienstmanager/person.dart';
@@ -12,8 +13,9 @@ import 'package:thw_dienstmanager/abwesenheiten_ansehen_view.dart';
 import 'package:thw_dienstmanager/dienste_page.dart';
 import 'package:thw_dienstmanager/dienst.dart';
 import 'package:thw_dienstmanager/dienstbeteiligung_view.dart';
+import 'package:thw_dienstmanager/config.dart';
 
-enum Ansicht { eintraegeAnsehen, neuerEintrag, dienstbeteiligung, diensteVerwalten, helferDaten }
+enum Ansicht { eintraegeAnsehen, dienstbeteiligung, diensteVerwalten, helferDaten }
 
 Future<String> get _localPath async {
   final directory = await getApplicationDocumentsDirectory();
@@ -31,13 +33,7 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  Ansicht _auswahl = Ansicht.neuerEintrag;
-
-  final _datumVonController = TextEditingController();
-  DateTime? _datumVon;
-
-  final _datumBisController = TextEditingController();
-  DateTime? _datumBis;
+  Ansicht _auswahl = Ansicht.eintraegeAnsehen;
 
   DateTime? _filterDatum;
 
@@ -47,16 +43,15 @@ class _HomePageState extends State<HomePage> {
 
   late Future<List<Person>> _personenFuture;
 
-  Person? _ausgewaehltePerson;
-
   final DateFormat _dateFormat = DateFormat('dd.MM.yyyy');
 
   Future<List<Person>> ladePersonenAusYaml() async {
     try {
-      final directory = await getApplicationDocumentsDirectory();
-      final file = File('${directory.path}/persons.yaml');
-      if (await file.exists()) {
-        final yamlString = await file.readAsString();
+      final url = Uri.parse('${Config.baseUrl}/persons.yaml');
+      final response = await http.get(url);
+
+      if (response.statusCode == 200 && response.body.isNotEmpty) {
+        final yamlString = response.body;
         final yamlList = loadYaml(yamlString) as YamlList;
         return yamlList.map((e) => Person.fromMap(Map<String, dynamic>.from(e))).toList();
       }
@@ -68,8 +63,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> speichereEintraegeInYaml() async {
-    final file = await _localFile;
-
+    final url = Uri.parse('${Config.baseUrl}/abwesenheiten.yaml');
     final eintraegeMapList = _eintraege.map((eintrag) => {
       'person': eintrag.person.toMap(),
       'von': _dateFormat.format(eintrag.von),
@@ -78,18 +72,22 @@ class _HomePageState extends State<HomePage> {
 
     final yamlWriter = YamlWriter();
     final yamlString = yamlWriter.write(eintraegeMapList);
-    await file.writeAsString(yamlString);
+    
+    try {
+      await http.post(url, body: yamlString);
+    } catch (e) {
+      print('Fehler beim Speichern der Abwesenheiten: $e');
+    }
   }
 
   Future<void> ladeEintraegeAusYaml() async {
     try {
-      final file = await _localFile;
-      if (!await file.exists()) return;
+      final url = Uri.parse('${Config.baseUrl}/abwesenheiten.yaml');
+      final response = await http.get(url);
+      
+      if (response.statusCode != 200 || response.body.isEmpty) return;
 
-      final content = await file.readAsString();
-      if (content.isEmpty) return;
-
-      final yamlList = loadYaml(content);
+      final yamlList = loadYaml(response.body);
       if (yamlList == null) return;
 
       List<EintragAbwesenheit> geladene = [];
@@ -109,10 +107,10 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> ladeDiensteAusYaml() async {
     try {
-      final directory = await getApplicationDocumentsDirectory();
-      final file = File('${directory.path}/dienste.yaml');
-      if (await file.exists()) {
-        final yamlString = await file.readAsString();
+      final url = Uri.parse('${Config.baseUrl}/dienste.yaml');
+      final response = await http.get(url);
+      if (response.statusCode == 200 && response.body.isNotEmpty) {
+        final yamlString = response.body;
         final yamlList = loadYaml(yamlString) as YamlList;
         List<Dienst> geladene = yamlList.map((e) => Dienst.fromMap(Map<String, dynamic>.from(e))).toList();
         geladene.sort((a, b) => b.datum.compareTo(a.datum));
@@ -136,179 +134,171 @@ class _HomePageState extends State<HomePage> {
     ladeDiensteAusYaml();
   }
 
-  Future<void> _selectDate(BuildContext context, bool isVon) async {
-    final DateTime now = DateTime.now();
-    final DateTime initialDate = isVon ? (_datumVon ?? now) : (_datumBis ?? now);
-    final DateTime? picked = await showDatePicker(
+  void _showNeuerEintragDialog() {
+    DateTime? datumVon;
+    DateTime? datumBis;
+    Person? ausgewaehltePerson;
+    final datumVonController = TextEditingController();
+    final datumBisController = TextEditingController();
+
+    showDialog(
       context: context,
-      initialDate: initialDate,
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2100),
-    );
-    if (picked != null) {
-      setState(() {
-        if (isVon) {
-          _datumVon = picked;
-          _datumVonController.text = _dateFormat.format(picked);
-        } else {
-          _datumBis = picked;
-          _datumBisController.text = _dateFormat.format(picked);
-        }
-      });
-    }
-  }
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Neue Abwesenheit'),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: FutureBuilder<List<Person>>(
+                  future: _personenFuture,
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    } else if (snapshot.hasError) {
+                      return Text('Fehler: ${snapshot.error}');
+                    } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                      return const Text('Keine Personen gefunden');
+                    } else {
+                      final personen = snapshot.data!;
+                      if (ausgewaehltePerson == null && personen.isNotEmpty) {
+                        ausgewaehltePerson = personen.first;
+                      }
+                      if (ausgewaehltePerson != null && !personen.contains(ausgewaehltePerson)) {
+                         try {
+                           ausgewaehltePerson = personen.firstWhere((p) => p.toMap().toString() == ausgewaehltePerson!.toMap().toString());
+                         } catch (e) {
+                           ausgewaehltePerson = personen.first;
+                         }
+                      }
 
-  void _onDatumChanged(String value, bool isVon) {
-    try {
-      final parsedDate = _dateFormat.parseStrict(value);
-      setState(() {
-        if (isVon) {
-          _datumVon = parsedDate;
-        } else {
-          _datumBis = parsedDate;
-        }
-      });
-    } catch (e) {
-      setState(() {
-        if (isVon) {
-          _datumVon = null;
-        } else {
-          _datumBis = null;
-        }
-      });
-    }
-  }
-
-  Widget buildNeuerEintragView() {
-    return FutureBuilder<List<Person>>(
-      future: _personenFuture,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return Center(child: CircularProgressIndicator());
-        } else if (snapshot.hasError) {
-          return Center(child: Text('Fehler beim Laden der Personen: ${snapshot.error}'));
-        } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return Center(child: Text('Keine Personen gefunden'));
-        } else {
-          final personen = snapshot.data!;
-          
-          if (_ausgewaehltePerson != null && !personen.contains(_ausgewaehltePerson)) {
-            _ausgewaehltePerson = null;
-          }
-
-          if (_ausgewaehltePerson == null && personen.isNotEmpty) {
-            _ausgewaehltePerson = personen.first;
-          }
-          return SingleChildScrollView(
-            child: Column(
-              children: [
-                DropdownButtonFormField<Person>(
-                  value: _ausgewaehltePerson,
-                  dropdownColor: Colors.white,
-                  decoration: InputDecoration(labelText: "Person auswählen"),
-                  items: personen.map((person) {
-                    return DropdownMenuItem<Person>(
-                      value: person,
-                      child: person.getRichTextName(),
-                    );
-                  }).toList(),
-                  onChanged: (Person? neuePerson) {
-                    setState(() {
-                      _ausgewaehltePerson = neuePerson;
-                    });
+                      return SingleChildScrollView(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            DropdownButtonFormField<Person>(
+                              value: ausgewaehltePerson,
+                              isExpanded: true,
+                              decoration: const InputDecoration(labelText: "Person auswählen"),
+                              items: personen.map((person) {
+                                return DropdownMenuItem<Person>(
+                                  value: person,
+                                  child: person.getRichTextName(),
+                                );
+                              }).toList(),
+                              onChanged: (Person? neuePerson) {
+                                setDialogState(() {
+                                  ausgewaehltePerson = neuePerson;
+                                });
+                              },
+                            ),
+                            const SizedBox(height: 16),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: TextField(
+                                    controller: datumVonController,
+                                    decoration: const InputDecoration(labelText: "Datum von", hintText: 'TT.MM.JJJJ'),
+                                    keyboardType: TextInputType.datetime,
+                                    onChanged: (value) {
+                                       try {
+                                          final parsed = _dateFormat.parseStrict(value);
+                                          setDialogState(() => datumVon = parsed);
+                                       } catch (_) {}
+                                    },
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.calendar_today, color: Color(0xFF003399)),
+                                  onPressed: () async {
+                                    final picked = await showDatePicker(
+                                      context: context,
+                                      initialDate: datumVon ?? DateTime.now(),
+                                      firstDate: DateTime(2000),
+                                      lastDate: DateTime(2100),
+                                    );
+                                    if (picked != null) {
+                                      setDialogState(() {
+                                        datumVon = picked;
+                                        datumVonController.text = _dateFormat.format(picked);
+                                      });
+                                    }
+                                  },
+                                ),
+                              ],
+                            ),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: TextField(
+                                    controller: datumBisController,
+                                    decoration: const InputDecoration(labelText: "Datum bis", hintText: 'TT.MM.JJJJ'),
+                                    keyboardType: TextInputType.datetime,
+                                    onChanged: (value) {
+                                       try {
+                                          final parsed = _dateFormat.parseStrict(value);
+                                          setDialogState(() => datumBis = parsed);
+                                       } catch (_) {}
+                                    },
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.calendar_today, color: Color(0xFF003399)),
+                                  onPressed: () async {
+                                    final picked = await showDatePicker(
+                                      context: context,
+                                      initialDate: datumBis ?? DateTime.now(),
+                                      firstDate: DateTime(2000),
+                                      lastDate: DateTime(2100),
+                                    );
+                                    if (picked != null) {
+                                      setDialogState(() {
+                                        datumBis = picked;
+                                        datumBisController.text = _dateFormat.format(picked);
+                                      });
+                                    }
+                                  },
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      );
+                    }
                   },
                 ),
-                SizedBox(height: 10),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _datumVonController,
-                        decoration: InputDecoration(
-                          labelText: "Datum von (TT.MM.JJJJ)",
-                          hintText: 'z.B. 15.12.2025',
-                        ),
-                        keyboardType: TextInputType.datetime,
-                        onChanged: (value) => _onDatumChanged(value, true),
-                      ),
-                    ),
-                    Ink(
-                      decoration: const ShapeDecoration(
-                        color: Color(0xFF003399),
-                        shape: CircleBorder(),
-                      ),
-                      child: IconButton(
-                        icon: const Icon(Icons.calendar_today),
-                        color: Colors.white,
-                        onPressed: () => _selectDate(context, true),
-                      ),
-                    ),
-                  ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Abbrechen'),
                 ),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _datumBisController,
-                        decoration: InputDecoration(
-                          labelText: "Datum bis (TT.MM.JJJJ)",
-                          hintText: 'z.B. 20.12.2025',
-                        ),
-                        keyboardType: TextInputType.datetime,
-                        onChanged: (value) => _onDatumChanged(value, false),
-                      ),
-                    ),
-                    Ink(
-                      decoration: const ShapeDecoration(
-                        color: Color(0xFF003399),
-                        shape: CircleBorder(),
-                      ),
-                      child: IconButton(
-                        icon: const Icon(Icons.calendar_today),
-                        color: Colors.white,
-                        onPressed: () => _selectDate(context, false),
-                      ),
-                    ),
-                  ],
-                ),
-                SizedBox(height: 10),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    icon: Icon(Icons.save),
-                    label: Text('Speichern'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Color(0xFF003399),
+                ElevatedButton(
+                  onPressed: () {
+                    if (ausgewaehltePerson == null || datumVon == null || datumBis == null) {
+                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Bitte alle Felder ausfüllen')));
+                       return;
+                    }
+                    if (datumVon!.isAfter(datumBis!)) {
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Datum von darf nicht nach Datum bis sein')));
+                        return;
+                    }
+                    setState(() {
+                      _eintraege.add(EintragAbwesenheit(ausgewaehltePerson!, datumVon!, datumBis!));
+                    });
+                    speichereEintraegeInYaml();
+                    Navigator.pop(context);
+                  },
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF003399),
                       foregroundColor: Colors.white,
-                    ),
-                    onPressed: () {
-                      if (_ausgewaehltePerson == null ||
-                          _datumVon == null ||
-                          _datumBis == null) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Bitte alle Felder ausfüllen')));
-                        return;
-                      }
-                      if (_datumVon!.isAfter(_datumBis!)) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Datum von darf nicht nach Datum bis sein')));
-                        return;
-                      }
-                      setState(() {
-                        _eintraege.add(EintragAbwesenheit(_ausgewaehltePerson!, _datumVon!, _datumBis!));
-                        _datumVonController.clear();
-                        _datumBisController.clear();
-                        _datumVon = null;
-                        _datumBis = null;
-                      });
-                      speichereEintraegeInYaml();
-                    },
                   ),
+                  child: const Text('Speichern'),
                 ),
               ],
-            ),
-          );
-        }
+            );
+          },
+        );
       },
     );
   }
@@ -346,19 +336,8 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
           ListTile(
-            leading: const Icon(Icons.add_circle_outline),
-            title: const Text('Neue Abwesenheit'),
-            selected: _auswahl == Ansicht.neuerEintrag,
-            onTap: () {
-              setState(() {
-                _auswahl = Ansicht.neuerEintrag;
-              });
-              Navigator.pop(context);
-            },
-          ),
-          ListTile(
             leading: const Icon(Icons.list),
-            title: const Text('Abwesenheiten ansehen'),
+            title: const Text('Abwesenheiten'),
             selected: _auswahl == Ansicht.eintraegeAnsehen,
             onTap: () {
               setState(() {
@@ -409,11 +388,8 @@ class _HomePageState extends State<HomePage> {
   AppBar getAppBar() {
     String title = 'Abwesenheiten 1.TZ';
     switch (_auswahl) {
-      case Ansicht.neuerEintrag:
-        title = 'Neue Abwesenheit';
-        break;
       case Ansicht.eintraegeAnsehen:
-        title = 'Abwesenheiten ansehen';
+        title = 'Abwesenheiten';
         break;
       case Ansicht.dienstbeteiligung:
         title = 'Dienstbeteiligung';
@@ -459,24 +435,43 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildContent() {
     switch (_auswahl) {
-      case Ansicht.neuerEintrag:
-        return buildNeuerEintragView();
       case Ansicht.eintraegeAnsehen:
-        return AbwesenheitenAnsehenView(
-          eintraege: _eintraege,
-          filterDatum: _filterDatum,
-          onFilterDatumChanged: (datum) {
-            setState(() => _filterDatum = datum);
-          },
-          onEintragRemoved: (eintrag) async {
-            setState(() {
-              _eintraege.remove(eintrag);
-            });
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Eintrag gelöscht')),
-            );
-            await speichereEintraegeInYaml();
-          },
+        return Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.add),
+                  label: const Text('Neue Abwesenheit hinzufügen'),
+                  onPressed: () => _showNeuerEintragDialog(),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF003399),
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+            Expanded(
+              child: AbwesenheitenAnsehenView(
+                eintraege: _eintraege,
+                filterDatum: _filterDatum,
+                onFilterDatumChanged: (datum) {
+                  setState(() => _filterDatum = datum);
+                },
+                onEintragRemoved: (eintrag) async {
+                  setState(() {
+                    _eintraege.remove(eintrag);
+                  });
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Eintrag gelöscht')),
+                  );
+                  await speichereEintraegeInYaml();
+                },
+              ),
+            ),
+          ],
         );
       case Ansicht.dienstbeteiligung:
         // Daten neu laden, falls sie in der Verwaltung geändert wurden

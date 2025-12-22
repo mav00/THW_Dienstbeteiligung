@@ -41,9 +41,10 @@ Diese Flutter-Anwendung dient der Verwaltung von Dienstbeteiligungen und Abwesen
 
 ## Datenstruktur
 
-Die Anwendung speichert Daten im lokalen Dokumentenverzeichnis der Anwendung in YAML-Dateien:
+Die Anwendung speichert und liest Daten im Webservice in YAML-Dateien:
 
 *   `persons.yaml`: Enthält die Liste der Helfer inkl. Funktionen (z.B. KF) und Einheit.
 *   `dienste.yaml`: Liste der angelegten Dienste.
 *   `abwesenheiten.yaml`: Gespeicherte Abwesenheitseinträge (Von-Bis Datum).
 *   `anwesenheit.yaml`: Speichert die erfasste Dienstbeteiligung pro Dienst und Helfer.
+

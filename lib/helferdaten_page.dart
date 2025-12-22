@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
+import 'package:http/http.dart' as http;
 import 'package:yaml/yaml.dart';
 import 'package:thw_dienstmanager/person.dart';
-import 'dart:io';
-import 'package:path_provider/path_provider.dart';
 import 'package:yaml_writer/yaml_writer.dart';
+import 'package:thw_dienstmanager/config.dart';
 
 class HelferdatenPage extends StatefulWidget {
   @override
@@ -18,15 +18,15 @@ class _HelferdatenPageState extends State<HelferdatenPage> {
   Future<void> ladePersonen() async {
     List<Person> geladenePersonen = [];
     try {
-      final directory = await getApplicationDocumentsDirectory();
-      final file = File('${directory.path}/persons.yaml');
-      if (await file.exists()) {
-        final yamlString = await file.readAsString();
+      final url = Uri.parse('${Config.baseUrl}/persons.yaml');
+      final response = await http.get(url);
+      if (response.statusCode == 200 && response.body.isNotEmpty) {
+        final yamlString = response.body;
         final yamlList = loadYaml(yamlString) as YamlList;
         geladenePersonen = yamlList.map((e) => Person.fromMap(Map<String, dynamic>.from(e))).toList();
       }
     } catch (e) {
-      print('Fehler beim Laden der lokalen Personen: $e');
+      print('Fehler beim Laden der Personen: $e');
     }
 
     if (mounted) {
@@ -38,13 +38,16 @@ class _HelferdatenPageState extends State<HelferdatenPage> {
   }
 
   Future<void> speichereListe() async {
-    final directory = await getApplicationDocumentsDirectory();
-    final file = File('${directory.path}/persons.yaml');
+    final url = Uri.parse('${Config.baseUrl}/persons.yaml');
     
     final yamlWriter = YamlWriter();
     final yamlString = yamlWriter.write(_personen.map((p) => p.toMap()).toList());
     
-    await file.writeAsString(yamlString);
+    try {
+      await http.post(url, body: yamlString);
+    } catch (e) {
+      print('Fehler beim Speichern der Personen: $e');
+    }
   }
 
   void _bearbeiteOderErstellePerson({Person? person, int? index}) {

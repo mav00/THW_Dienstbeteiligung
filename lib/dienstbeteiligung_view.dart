@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:thw_dienstmanager/dienst.dart';
 import 'package:thw_dienstmanager/person.dart';
@@ -9,6 +10,7 @@ import 'package:yaml_writer/yaml_writer.dart';
 import 'package:thw_dienstmanager/dienst_status.dart';
 import 'package:thw_dienstmanager/pdf_export_service.dart';
 import 'package:open_filex/open_filex.dart';
+import 'package:thw_dienstmanager/config.dart';
 
 class DienstbeteiligungView extends StatefulWidget {
   final List<Dienst> dienste;
@@ -29,6 +31,26 @@ class _DienstbeteiligungViewState extends State<DienstbeteiligungView> {
   final DateFormat _dateFormat = DateFormat('dd.MM.yyyy');
   final Map<Dienst, Map<Person, DienstStatus>> _anwesenheitsListe = {};
 
+  int _getFunktionSortValue(List<Funktion> funktionen) {
+    const funktionOrder = {
+      Funktion.ZFue: 0,
+      Funktion.ZTrFue: 1,
+      Funktion.GrFue: 2,
+      Funktion.TrFue: 3,
+      Funktion.KF: 4,
+    };
+
+    int bestValue = 5; // Standardwert für keine der priorisierten Funktionen
+    if (funktionen.isEmpty) return bestValue;
+
+    for (var f in funktionen) {
+      if (funktionOrder.containsKey(f) && funktionOrder[f]! < bestValue) {
+        bestValue = funktionOrder[f]!;
+      }
+    }
+    return bestValue;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -46,12 +68,11 @@ class _DienstbeteiligungViewState extends State<DienstbeteiligungView> {
 
   Future<void> _loadAttendance() async {
     try {
-      final directory = await getApplicationDocumentsDirectory();
-      final file = File('${directory.path}/anwesenheit.yaml');
-      if (!await file.exists()) return;
-
-      final content = await file.readAsString();
-      if (content.isEmpty) return;
+      final url = Uri.parse('${Config.baseUrl}/anwesenheit.yaml');
+      final response = await http.get(url);
+      
+      if (response.statusCode != 200 || response.body.isEmpty) return;
+      final content = response.body;
       
       final yamlList = loadYaml(content);
       if (yamlList == null) return;
@@ -112,8 +133,7 @@ class _DienstbeteiligungViewState extends State<DienstbeteiligungView> {
   }
 
   Future<void> _saveAttendance() async {
-    final directory = await getApplicationDocumentsDirectory();
-    final file = File('${directory.path}/anwesenheit.yaml');
+    final url = Uri.parse('${Config.baseUrl}/anwesenheit.yaml');
     
     final List<Map<String, dynamic>> exportList = [];
     
@@ -138,7 +158,11 @@ class _DienstbeteiligungViewState extends State<DienstbeteiligungView> {
 
     final yamlWriter = YamlWriter();
     final yamlString = yamlWriter.write(exportList);
-    await file.writeAsString(yamlString);
+    try {
+      await http.post(url, body: yamlString);
+    } catch (e) {
+      print('Fehler beim Speichern der Anwesenheit: $e');
+    }
   }
 
   Future<void> _exportPdf() async {
@@ -266,10 +290,21 @@ class _DienstbeteiligungViewState extends State<DienstbeteiligungView> {
             }
             
             teilnehmendePersonen = uniquePersons.toList();
-            // Sortieren nach Name, Vorname
+            // Sortieren nach den Regeln: 1. Einheit, 2. Funktion, 3. Name
             teilnehmendePersonen.sort((a, b) {
-              int cmp = a.name.compareTo(b.name);
-              return cmp != 0 ? cmp : a.vorname.compareTo(b.vorname);
+              // 1. Nach Einheit (ZTr, B, N, E)
+              int einheitCompare = a.einheit.index.compareTo(b.einheit.index);
+              if (einheitCompare != 0) return einheitCompare;
+
+              // 2. Nach Funktion (ZFue, ZTrFue, GrFue, TrFue, KF)
+              int funktionAValue = _getFunktionSortValue(a.funktionen);
+              int funktionBValue = _getFunktionSortValue(b.funktionen);
+              int funktionCompare = funktionAValue.compareTo(funktionBValue);
+              if (funktionCompare != 0) return funktionCompare;
+
+              // 3. Nach Name
+              int nameCompare = a.name.compareTo(b.name);
+              return nameCompare != 0 ? nameCompare : a.vorname.compareTo(b.vorname);
             });
           }
 

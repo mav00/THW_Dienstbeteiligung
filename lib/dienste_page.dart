@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'dart:io';
-import 'package:path_provider/path_provider.dart';
+import 'package:http/http.dart' as http;
 import 'package:yaml/yaml.dart';
 import 'package:yaml_writer/yaml_writer.dart';
 import 'package:intl/intl.dart';
 import 'package:thw_dienstmanager/dienst.dart';
 import 'package:thw_dienstmanager/person.dart';
+import 'package:thw_dienstmanager/config.dart';
 
 class DienstePage extends StatefulWidget {
   @override
@@ -26,10 +26,10 @@ class _DienstePageState extends State<DienstePage> {
   Future<void> ladeDienste() async {
     List<Dienst> geladeneDienste = [];
     try {
-      final directory = await getApplicationDocumentsDirectory();
-      final file = File('${directory.path}/dienste.yaml');
-      if (await file.exists()) {
-        final yamlString = await file.readAsString();
+      final url = Uri.parse('${Config.baseUrl}/dienste.yaml');
+      final response = await http.get(url);
+      if (response.statusCode == 200 && response.body.isNotEmpty) {
+        final yamlString = response.body;
         final yamlList = loadYaml(yamlString) as YamlList;
         geladeneDienste = yamlList.map((e) => Dienst.fromMap(Map<String, dynamic>.from(e))).toList();
         // Sortiere nach Datum absteigend (neueste zuerst)
@@ -48,13 +48,16 @@ class _DienstePageState extends State<DienstePage> {
   }
 
   Future<void> speichereDienste() async {
-    final directory = await getApplicationDocumentsDirectory();
-    final file = File('${directory.path}/dienste.yaml');
+    final url = Uri.parse('${Config.baseUrl}/dienste.yaml');
     
     final yamlWriter = YamlWriter();
     final yamlString = yamlWriter.write(_dienste.map((d) => d.toMap()).toList());
     
-    await file.writeAsString(yamlString);
+    try {
+      await http.post(url, body: yamlString);
+    } catch (e) {
+      print('Fehler beim Speichern der Dienste: $e');
+    }
   }
 
   void _bearbeiteOderErstelleDienst({Dienst? dienst, int? index}) {
