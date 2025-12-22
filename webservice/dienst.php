@@ -1,6 +1,6 @@
 <?php
 $dataDir = __DIR__ . '/data';
-$allowedFiles = ['persons.yaml', 'dienste.yaml', 'abwesenheiten.yaml', 'anwesenheit.yaml'];
+$allowedFiles = ['persons.yaml', 'dienste.yaml', 'abwesenheiten.yaml', 'anwesenheit.yaml', 'ausbildungsthemen.yaml'];
 
 if (!is_dir($dataDir)) mkdir($dataDir, 0777, true);
 

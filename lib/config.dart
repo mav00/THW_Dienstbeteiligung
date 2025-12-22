@@ -1,3 +1,5 @@
 class Config {
-  static const String baseUrl = 'https://www.thw-muenchen-mitte.de/webservice/dienst.php';
+  static const String baseUrl = '';
+  static const String username = '';
+  static const String password = '';
 }

@@ -10,8 +10,9 @@ import 'package:thw_dienstmanager/dienste_page.dart';
 import 'package:thw_dienstmanager/dienst.dart';
 import 'package:thw_dienstmanager/dienstbeteiligung_view.dart';
 import 'package:thw_dienstmanager/api_service.dart';
+import 'package:thw_dienstmanager/ausbildungsthemen_view.dart';
 
-enum Ansicht { eintraegeAnsehen, dienstbeteiligung, diensteVerwalten, helferDaten }
+enum Ansicht { eintraegeAnsehen, dienstbeteiligung, ausbildungsthemen, diensteVerwalten, helferDaten }
 
 class HomePage extends StatefulWidget {
   @override
@@ -312,6 +313,17 @@ class _HomePageState extends State<HomePage> {
           ),
           const Divider(),
           ListTile(
+            leading: const Icon(Icons.school),
+            title: const Text('Ausbildungsthemen'),
+            selected: _auswahl == Ansicht.ausbildungsthemen,
+            onTap: () {
+              setState(() {
+                _auswahl = Ansicht.ausbildungsthemen;
+              });
+              Navigator.pop(context);
+            },
+          ),
+          ListTile(
             leading: const Icon(Icons.calendar_month),
             title: const Text('Dienste verwalten'),
             selected: _auswahl == Ansicht.diensteVerwalten,
@@ -346,6 +358,9 @@ class _HomePageState extends State<HomePage> {
         break;
       case Ansicht.dienstbeteiligung:
         title = 'Dienstbeteiligung';
+        break;
+      case Ansicht.ausbildungsthemen:
+        title = 'Ausbildungsthemen';
         break;
       case Ansicht.diensteVerwalten:
         title = 'Dienste verwalten';
@@ -433,6 +448,10 @@ class _HomePageState extends State<HomePage> {
           dienste: _dienste,
           personenFuture: _personenFuture,
         );
+      case Ansicht.ausbildungsthemen:
+        // Dienste neu laden, falls sie geändert wurden
+        ladeDiensteAusYaml();
+        return AusbildungsthemenView(dienste: _dienste);
       case Ansicht.diensteVerwalten:
         return DienstePage();
       case Ansicht.helferDaten:

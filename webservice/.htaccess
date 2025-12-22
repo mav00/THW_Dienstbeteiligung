@@ -1,0 +1,4 @@
+AuthType Basic
+AuthName "THW Dienstmanager"
+AuthUserFile /var/www/virtual/thw-muenchen-mitte.de/webservice/.htpasswd
+Require valid-user
