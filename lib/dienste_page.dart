@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:yaml/yaml.dart';
-import 'package:yaml_writer/yaml_writer.dart';
 import 'package:intl/intl.dart';
 import 'package:thw_dienstmanager/dienst.dart';
 import 'package:thw_dienstmanager/person.dart';
-import 'package:thw_dienstmanager/config.dart';
+import 'package:thw_dienstmanager/api_service.dart';
 
 class DienstePage extends StatefulWidget {
   @override
@@ -25,18 +23,12 @@ class _DienstePageState extends State<DienstePage> {
 
   Future<void> ladeDienste() async {
     List<Dienst> geladeneDienste = [];
-    try {
-      final url = Uri.parse('${Config.baseUrl}/dienste.yaml');
-      final response = await http.get(url);
-      if (response.statusCode == 200 && response.body.isNotEmpty) {
-        final yamlString = response.body;
-        final yamlList = loadYaml(yamlString) as YamlList;
-        geladeneDienste = yamlList.map((e) => Dienst.fromMap(Map<String, dynamic>.from(e))).toList();
-        // Sortiere nach Datum absteigend (neueste zuerst)
-        geladeneDienste.sort((a, b) => b.datum.compareTo(a.datum));
-      }
-    } catch (e) {
-      print('Fehler beim Laden der Dienste: $e');
+    final data = await ApiService.loadYamlData('dienste.yaml');
+    
+    if (data is YamlList) {
+      geladeneDienste = data.map((e) => Dienst.fromMap(Map<String, dynamic>.from(e))).toList();
+      // Sortiere nach Datum absteigend (neueste zuerst)
+      geladeneDienste.sort((a, b) => b.datum.compareTo(a.datum));
     }
 
     if (mounted) {
@@ -48,16 +40,7 @@ class _DienstePageState extends State<DienstePage> {
   }
 
   Future<void> speichereDienste() async {
-    final url = Uri.parse('${Config.baseUrl}/dienste.yaml');
-    
-    final yamlWriter = YamlWriter();
-    final yamlString = yamlWriter.write(_dienste.map((d) => d.toMap()).toList());
-    
-    try {
-      await http.post(url, body: yamlString);
-    } catch (e) {
-      print('Fehler beim Speichern der Dienste: $e');
-    }
+    await ApiService.saveYamlData('dienste.yaml', _dienste.map((d) => d.toMap()).toList());
   }
 
   void _bearbeiteOderErstelleDienst({Dienst? dienst, int? index}) {

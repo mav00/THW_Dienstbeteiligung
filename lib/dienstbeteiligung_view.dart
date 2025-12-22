@@ -1,16 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:thw_dienstmanager/dienst.dart';
 import 'package:thw_dienstmanager/person.dart';
 import 'dart:io';
-import 'package:path_provider/path_provider.dart';
 import 'package:yaml/yaml.dart';
-import 'package:yaml_writer/yaml_writer.dart';
 import 'package:thw_dienstmanager/dienst_status.dart';
 import 'package:thw_dienstmanager/pdf_export_service.dart';
 import 'package:open_filex/open_filex.dart';
-import 'package:thw_dienstmanager/config.dart';
+import 'package:thw_dienstmanager/api_service.dart';
 
 class DienstbeteiligungView extends StatefulWidget {
   final List<Dienst> dienste;
@@ -67,20 +64,12 @@ class _DienstbeteiligungViewState extends State<DienstbeteiligungView> {
   }
 
   Future<void> _loadAttendance() async {
-    try {
-      final url = Uri.parse('${Config.baseUrl}/anwesenheit.yaml');
-      final response = await http.get(url);
-      
-      if (response.statusCode != 200 || response.body.isEmpty) return;
-      final content = response.body;
-      
-      final yamlList = loadYaml(content);
-      if (yamlList == null) return;
-
+    final data = await ApiService.loadYamlData('anwesenheit.yaml');
+    if (data is YamlList) {
       final personen = await widget.personenFuture;
       final Map<Dienst, Map<Person, DienstStatus>> loadedData = {};
 
-      for (var entry in yamlList) {
+      for (var entry in data) {
         final dateStr = entry['date'];
         // Dienst anhand des Datums finden
         Dienst? dienst;
@@ -127,14 +116,10 @@ class _DienstbeteiligungViewState extends State<DienstbeteiligungView> {
           _anwesenheitsListe.addAll(loadedData);
         });
       }
-    } catch (e) {
-      print('Fehler beim Laden der Anwesenheit: $e');
     }
   }
 
   Future<void> _saveAttendance() async {
-    final url = Uri.parse('${Config.baseUrl}/anwesenheit.yaml');
-    
     final List<Map<String, dynamic>> exportList = [];
     
     _anwesenheitsListe.forEach((dienst, personStatusMap) {
@@ -156,13 +141,7 @@ class _DienstbeteiligungViewState extends State<DienstbeteiligungView> {
       });
     });
 
-    final yamlWriter = YamlWriter();
-    final yamlString = yamlWriter.write(exportList);
-    try {
-      await http.post(url, body: yamlString);
-    } catch (e) {
-      print('Fehler beim Speichern der Anwesenheit: $e');
-    }
+    await ApiService.saveYamlData('anwesenheit.yaml', exportList);
   }
 
   Future<void> _exportPdf() async {
